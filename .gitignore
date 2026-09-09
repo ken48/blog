@@ -1,2 +1,7 @@
 .obsidian
 .DS_Store
+site/_posts/
+site/_site/
+site/.jekyll-cache/
+site/.bundle/
+site/vendor/
