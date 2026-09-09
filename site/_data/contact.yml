@@ -1,5 +1,19 @@
 - type: github
   icon: "fab fa-github"
-- type: rss
-  icon: "fas fa-rss"
-  noblank: true
+  url: "https://github.com/ken48"
+
+- type: telegram
+  icon: "fab fa-telegram"
+  url: "https://t.me/kbelonogov"
+
+- type: instagram
+  icon: "fab fa-instagram"
+  url: "https://www.instagram.com/belonogovkirill"
+
+- type: facebook
+  icon: "fab fa-facebook"
+  url: "https://www.facebook.com/belonogovk"
+
+- type: vk
+  icon: "fab fa-vk"
+  url: "https://vk.ru/ken48"
