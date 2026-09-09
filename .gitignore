@@ -5,3 +5,7 @@ site/_site/
 site/.jekyll-cache/
 site/.bundle/
 site/vendor/
+
+# Generated from external article repositories
+site/articles/
+site/_data/articles.json
