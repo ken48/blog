@@ -4,6 +4,19 @@ require 'digest'
 require 'fileutils'
 require 'yaml'
 
+# Read the opening tag-only lines (after optional YAML front matter).
+# Stop at the first content line, so headings, links and code are never scanned.
+def opening_tags(body)
+  tags = []
+  body.each_line do |line|
+    next if line.strip.empty?
+    tokens = line.split
+    break unless tokens.all? { |token| token.match?(/\A#[\p{L}\p{M}\p{N}_-]+(?:\/[\p{L}\p{M}\p{N}_-]+)*\z/) && token.match?(/[\p{L}_-]/) }
+    tags.concat(tokens.map { |token| token.delete_prefix('#') })
+  end
+  tags
+end
+
 root = File.expand_path('..', __dir__)
 destination = File.join(root, 'site', '_posts')
 FileUtils.rm_rf(destination)
@@ -29,6 +42,8 @@ Dir.glob(File.join(root, '*.md')).sort.each do |source|
   end
   next if metadata['published'] == false
   data = { 'title' => title, 'date' => date, 'tags' => [] }.merge(metadata)
+  yaml_tags = data['tags'].is_a?(String) ? data['tags'].split : Array(data['tags'])
+  data['tags'] = (yaml_tags + opening_tags(body)).map { |tag| tag.to_s.delete_prefix('#') }.reject(&:empty?).uniq
   # A short hash gives every note a stable, URL-safe identifier independent of content.
   slug = Digest::SHA256.hexdigest(name)[0, 16]
   data['slug'] ||= slug

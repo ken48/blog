@@ -14,7 +14,8 @@ timezone: Europe/Moscow
 # jekyll-seo-tag settings › https://github.com/jekyll/jekyll-seo-tag/blob/master/docs/usage.md
 # ↓ --------------------------
 
-title: Кирилл
+title: Кирилл Белоногов
+avatar: https://github.com/ken48.png
 
 tagline: Заметки о работе и жизни
 
@@ -34,7 +35,7 @@ twitter:
 social:
   # Change to your full name.
   # It will be displayed as the default author of the posts and the copyright owner in the Footer
-  name: Кирилл
+  name: Кирилл Белоногов
   email: # change to your email address
   fediverse_handle: # fill in your fediverse handle. E.g. "@username@domain.com"
   links:
