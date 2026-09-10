@@ -4,16 +4,21 @@ require 'digest'
 require 'fileutils'
 require 'yaml'
 
-# Read the opening tag-only lines (after optional YAML front matter).
-# Stop at the first content line, so headings, links and code are never scanned.
-def opening_tags(body)
+# Read tag-only lines at the beginning and end of a note.
+# Content in between is never scanned, so prose, headings, links and code are safe.
+def boundary_tags(body)
   tags = []
-  body.each_line do |line|
-    next if line.strip.empty?
-    tokens = line.split
-    break unless tokens.all? { |token| token.match?(/\A#[\p{L}\p{M}\p{N}_-]+(?:\/[\p{L}\p{M}\p{N}_-]+)*\z/) && token.match?(/[\p{L}_-]/) }
-    tags.concat(tokens.map { |token| token.delete_prefix('#') })
+  lines = body.lines
+
+  [lines, lines.reverse].each do |edge|
+    edge.each do |line|
+      next if line.strip.empty?
+      tokens = line.split
+      break unless tokens.all? { |token| token.match?(/\A#[\p{L}\p{M}\p{N}_-]+(?:\/[\p{L}\p{M}\p{N}_-]+)*\z/) && token.match?(/[\p{L}_-]/) }
+      tags.concat(tokens.map { |token| token.delete_prefix('#') })
+    end
   end
+
   tags
 end
 
@@ -86,7 +91,7 @@ Dir.glob(File.join(source_root, '*.md')).sort.each do |source|
   date, title, body = extract_heading(body, name)
   data = { 'tags' => [] }.merge(metadata).merge('title' => title, 'date' => date)
   yaml_tags = data['tags'].is_a?(String) ? data['tags'].split : Array(data['tags'])
-  data['tags'] = (yaml_tags + opening_tags(body)).map { |tag| tag.to_s.delete_prefix('#') }.reject(&:empty?).uniq
+  data['tags'] = (yaml_tags + boundary_tags(body)).map { |tag| tag.to_s.delete_prefix('#') }.reject(&:empty?).uniq
   # A short hash gives every note a stable, URL-safe identifier independent of content.
   slug = Digest::SHA256.hexdigest(name)[0, 16]
   data['slug'] ||= slug
