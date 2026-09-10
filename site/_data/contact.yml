@@ -17,3 +17,7 @@
 - type: vk
   icon: "fab fa-vk"
   url: "https://vk.ru/ken48"
+
+- type: habr
+  icon: "fas fa-h"
+  url: "https://habr.com/ru/users/ken48/"

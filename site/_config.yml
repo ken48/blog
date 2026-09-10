@@ -16,10 +16,10 @@ timezone: Europe/Moscow
 
 title: Кирилл Белоногов
 
-tagline: Заметки о жизни
+tagline: Заметки обо всем
 
 description: >- # used by seo meta and the atom feed
-  Заметки Кирилла Белоногова о жизни.
+  Заметки Кирилла Белоногова обо всем.
 
 # Fill in the protocol & hostname for your site.
 # E.g. 'https://username.github.io', note that it does not end with a '/'.

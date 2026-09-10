@@ -1,0 +1,29 @@
+---
+---
+
+@use 'abstracts/variables' with (
+  $theme: '{{ site.theme_mode }}'
+);
+
+/* prettier-ignore */
+@use 'main
+{%- if jekyll.environment == 'production' -%}
+  .bundle
+{%- endif -%}
+';
+
+#sidebar .sidebar-bottom a[aria-label='habr'] {
+  width: auto;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+#sidebar .sidebar-bottom a[aria-label='habr'] i {
+  display: none;
+}
+
+#sidebar .sidebar-bottom a[aria-label='habr']::after {
+  content: 'Habr';
+}
