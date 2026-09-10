@@ -18,11 +18,15 @@ def opening_tags(body)
 end
 
 root = File.expand_path('..', __dir__)
+source_root = ARGV[0]
+abort 'Usage: prepare-posts.rb NOTES_DIRECTORY' unless source_root
+source_root = File.expand_path(source_root)
+abort "Notes directory not found: #{source_root}" unless File.directory?(source_root)
 destination = File.join(root, 'site', '_posts')
 FileUtils.rm_rf(destination)
 FileUtils.mkdir_p(destination)
 count = 0
-Dir.glob(File.join(root, '*.md')).sort.each do |source|
+Dir.glob(File.join(source_root, '*.md')).sort.each do |source|
   name = File.basename(source, '.md')
   match = /\A(\d{4}-\d{2}-\d{2}) (.+)\z/.match(name)
   next unless match

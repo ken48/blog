@@ -4,10 +4,13 @@
 
 ## Публикация
 
-Добавляйте и редактируйте заметки в корне репозитория как раньше:
-`2026-09-09 Название заметки.md`. После отправки изменений в `main`
-GitHub Actions подготовит посты, соберёт Chirpy и опубликует сайт.
-Исходные заметки не изменяются. Пустые файлы и файлы без даты не публикуются.
+Добавляйте и редактируйте заметки в репозитории
+[ken48/obsidian-posts](https://github.com/ken48/obsidian-posts):
+`2026-09-09 Название заметки.md`. Чтобы опубликовать изменения, откройте
+Actions → Build and Deploy в репозитории сайта и нажмите Run workflow.
+Сборка скачает актуальные заметки, подготовит посты, соберёт Chirpy и
+опубликует сайт. Исходные заметки не изменяются. Пустые файлы и файлы без
+даты не публикуются.
 Будущие даты Jekyll публикует только при сборке после наступления даты;
 для этого можно вручную запустить Build and Deploy в Actions.
 
@@ -42,7 +45,8 @@ GitHub Actions. После объединения PR сайт публикует
 Нужны Ruby 3.4 и Bundler:
 
 ```sh
-ruby tools/prepare-posts.rb
+git clone https://github.com/ken48/obsidian-posts.git ../obsidian-posts
+ruby tools/prepare-posts.rb ../obsidian-posts
 cd site
 bundle install
 bundle exec jekyll serve
