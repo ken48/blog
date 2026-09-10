@@ -1,0 +1,16 @@
+posts:
+  repo: ken48/obsidian-posts
+
+articles:
+  - repo: ken48/obsidian-digital-resilience
+    slug: digital-resilience
+  - repo: ken48/obsidian-archive
+    slug: archive
+  - repo: ken48/obsidian-keyboards
+    slug: keyboards
+  - repo: ken48/obsidian-selforg-res
+    slug: selforg-res
+  - repo: ken48/obsidian-selforg
+    slug: selforg
+  - repo: ken48/obsidian-notes
+    slug: notes

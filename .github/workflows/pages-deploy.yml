@@ -22,21 +22,13 @@ jobs:
     steps:
       - name: Check out site
         uses: actions/checkout@v7
-      - name: Check out notes
-        uses: actions/checkout@v7
-        with:
-          repository: ken48/obsidian-posts
-          path: notes-source
-          persist-credentials: false
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'
           bundler-cache: true
           working-directory: site
-      - name: Prepare articles
-        run: python3 ../tools/prepare-articles.py
-      - name: Prepare Markdown notes
-        run: ruby ../tools/prepare-posts.rb ../notes-source
+      - name: Prepare content
+        run: ruby ../tools/prepare-content.rb
       - name: Build site
         run: bundle exec jekyll build -d _site/blog
         env:

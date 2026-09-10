@@ -5,7 +5,7 @@ layout: page
 {% assign df_strftime_m = site.data.locales[lang].df.archives.strftime | default: '/ %m' %}
 {% assign df_dayjs_m = site.data.locales[lang].df.archives.dayjs | default: '/ MM' %}
 <div id="archives" class="pl-xl-3">
-  {% for post in site.data.archive_entries %}
+  {% for post in site.posts %}
     {% assign cur_year = post.date | date: '%Y' %}
     {% if cur_year != last_year %}
       {% unless forloop.first %}</ul>{% endunless %}

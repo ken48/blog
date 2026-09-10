@@ -14,13 +14,6 @@ panel_includes:
       {{ title }}
     </h1>
 
-    {% if page.article %}
-      <div class="post-meta text-muted mb-4">
-        <div>{% include published-date.html %}</div>
-        <div>{% include read-time.html content=content prompt=true lang=lang %}</div>
-      </div>
-    {% endif %}
-
     <div class="content">
       {{ content }}
     </div>

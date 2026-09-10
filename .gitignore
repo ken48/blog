@@ -1,10 +1,9 @@
 .DS_Store
-site/_posts/
 site/_site/
 site/.jekyll-cache/
 site/.bundle/
 site/vendor/
 
-# Generated from external article repositories
+# Generated from external content repositories
+site/_posts/
 site/articles/
-site/_data/articles.json
