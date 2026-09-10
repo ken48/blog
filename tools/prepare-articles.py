@@ -14,7 +14,25 @@ from urllib.parse import quote, unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def import_article(source, checkout, output):
+def article_link(value, article_links):
+    """Convert repository-root links only; file, issue and code links stay external."""
+    parts = urlsplit(value)
+    if parts.scheme not in ('http', 'https') or parts.netloc.lower() != 'github.com':
+        return value
+    repo = parts.path.strip('/')
+    if repo.endswith('.git'):
+        repo = repo[:-4]
+    slug = article_links.get(repo.lower())
+    if slug is None:
+        return value
+    fragment = parts.fragment
+    if fragment.lower() == 'readme':
+        fragment = ''
+    return f'../{slug}/' + ('?' + parts.query if parts.query else '') + ('#' + fragment if fragment else '')
+
+
+def import_article(source, checkout, output, article_links=None):
+    article_links = article_links or {}
     slug = source['slug']
     readmes = [p for p in checkout.iterdir() if p.name.lower() == 'readme.md']
     if len(readmes) != 1:
@@ -23,17 +41,26 @@ def import_article(source, checkout, output):
     heading = re.search(r'^# +(.+?)\s*$', text, re.M)
     if not heading:
         raise ValueError(f"Missing article title in {source['repo']}")
-    title = heading[1]
+    dated_title = re.fullmatch(r'(\d{4}-\d{2}-\d{2})[ \t]+(.+)', heading[1].strip())
+    if not dated_title:
+        raise ValueError(f"Expected '# YYYY-MM-DD Title' in {source['repo']}")
+    date_text, title = dated_title.groups()
+    try:
+        date = datetime.strptime(date_text, '%Y-%m-%d').replace(tzinfo=ZoneInfo('Europe/Moscow')).isoformat()
+    except ValueError as error:
+        raise ValueError(f"Invalid article date {date_text} in {source['repo']}") from error
     text = text[:heading.start()] + text[heading.end():]
     revision = subprocess.check_output(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], text=True).strip()
-    committed = subprocess.check_output(['git', '-C', str(checkout), 'show', '-s', '--format=%cI', 'HEAD'], text=True).strip()
-    date = datetime.fromisoformat(committed).astimezone(ZoneInfo('Europe/Moscow')).isoformat()
     article_dir = output / 'articles' / slug
     article_dir.mkdir(parents=True)
     copied = set()
 
     def resolve_url(value, image=False):
         value = html.unescape(value)
+        if not image:
+            converted = article_link(value, article_links)
+            if converted != value:
+                return converted
         parts = urlsplit(value)
         if parts.scheme or parts.netloc or not parts.path:
             return value
@@ -91,6 +118,7 @@ def main():
         if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', source['slug']) or source['slug'] in slugs:
             raise ValueError('Invalid or duplicate article slug')
         slugs.add(source['slug'])
+    article_links = {source['repo'].lower(): source['slug'] for source in sources}
     with tempfile.TemporaryDirectory() as temporary:
         temp = Path(temporary)
         generated = temp / 'generated'
@@ -101,7 +129,7 @@ def main():
             checkout = args.sources_dir.resolve() / name if args.sources_dir else temp / name
             if not args.sources_dir:
                 subprocess.run(['git', 'clone', '--depth', '1', '--', f"https://github.com/{source['repo']}.git", str(checkout)], check=True)
-            article = import_article(source, checkout, generated)
+            article = import_article(source, checkout, generated, article_links)
             articles.append(article)
             print(f"Imported {source['repo']}: {article['images']} images")
         target = ROOT / 'site' / 'articles'
