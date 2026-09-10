@@ -3,3 +3,21 @@
   <h2 class="panel-heading ps-3 pb-2 mb-0">{{- site.data.locales[include.lang].panel.toc -}}</h2>
   <nav id="toc"></nav>
 </section>
+
+{% if page.article %}
+  <script src="{{ site.data.origin[type].toc.js }}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      tocbot.init({
+        tocSelector: '#toc',
+        contentSelector: '.content',
+        ignoreSelector: '[data-toc-skip]',
+        headingSelector: 'h2, h3, h4',
+        orderedList: false,
+        scrollSmooth: false,
+        headingsOffset: 32
+      });
+      document.getElementById('toc-wrapper').classList.remove('invisible');
+    });
+  </script>
+{% endif %}
