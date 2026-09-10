@@ -1,0 +1,28 @@
+---
+layout: default
+---
+
+{% include lang.html %}
+
+<article class="px-1">
+  {% if page.layout == 'page' or page.collection == 'tabs' %}
+    {% assign tab_key = page.title | downcase %}
+    {% assign title = site.data.locales[lang].tabs[tab_key] | default: page.title %}
+    <h1 class="dynamic-title">
+      {{ title }}
+    </h1>
+
+    {% if page.article %}
+      <div class="post-meta text-muted mb-4 d-flex flex-wrap gap-3">
+        {% include published-date.html %}
+        {% include read-time.html content=content prompt=true lang=lang %}
+      </div>
+    {% endif %}
+
+    <div class="content">
+      {{ content }}
+    </div>
+  {% else %}
+    {{ content }}
+  {% endif %}
+</article>
