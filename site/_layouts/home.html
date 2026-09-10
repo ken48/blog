@@ -97,8 +97,8 @@ layout: default
 
 {% if page.feed_total_pages > 1 %}
 <nav class="d-flex justify-content-between my-4" aria-label="Страницы ленты">
-  <span>{% if page.feed_previous %}<a href="{{ page.feed_previous | relative_url }}">← Новее</a>{% endif %}</span>
+  <span>{% if page.feed_previous %}<a href="{{ page.feed_previous | relative_url }}">← Позже</a>{% endif %}</span>
   <span>{{ page.feed_page }} / {{ page.feed_total_pages }}</span>
-  <span>{% if page.feed_next %}<a href="{{ page.feed_next | relative_url }}">Старее →</a>{% endif %}</span>
+  <span>{% if page.feed_next %}<a href="{{ page.feed_next | relative_url }}">Раньше →</a>{% endif %}</span>
 </nav>
 {% endif %}
