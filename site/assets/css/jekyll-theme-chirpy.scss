@@ -27,7 +27,3 @@
 #sidebar .sidebar-bottom a[aria-label='habr']::after {
   content: 'Habr';
 }
-
-footer[aria-label='Site Info'] > p:first-child > span {
-  display: none;
-}
