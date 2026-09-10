@@ -73,7 +73,7 @@ def import_article(source, checkout, output):
         chunk = re.sub(r'(!?\[[^\]\n]*\])\(([^\s()]+)\)', markdown_link, chunk)
         chunks[i] = chunk
     text = ''.join(chunks)
-    frontmatter = {'layout': 'article', 'title': title, 'date': date, 'toc': True, 'render_with_liquid': False}
+    frontmatter = {'layout': 'article', 'media_subpath': f'/articles/{slug}', 'title': title, 'date': date, 'toc': True, 'render_with_liquid': False}
     rendered = '---\n' + '\n'.join(k + ': ' + json.dumps(v, ensure_ascii=False) for k, v in frontmatter.items()) + '\n---\n\n' + text.lstrip()
     (article_dir / 'index.md').write_text(rendered, encoding='utf-8')
     return {'title': title, 'date': date, 'url': f'/articles/{slug}/', 'source': f"https://github.com/{source['repo']}", 'revision': revision, 'images': len(copied)}
