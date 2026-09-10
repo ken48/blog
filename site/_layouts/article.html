@@ -1,5 +1,11 @@
 ---
-layout: page
+layout: default
 ---
-<time class="text-muted d-block mb-4" datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: '%d.%m.%Y' }}</time>
-{{ content }}
+{% include lang.html %}
+<article class="px-1">
+  <h1 class="dynamic-title">{{ page.title | escape }}</h1>
+  <time class="text-muted d-block mb-4" datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: '%d.%m.%Y' }}</time>
+  <div class="content">
+    {{ content }}
+  </div>
+</article>
