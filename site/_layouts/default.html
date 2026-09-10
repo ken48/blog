@@ -20,7 +20,7 @@ layout: compress
   <body>
     {% assign show_panel = false %}
     {% if site.toc and page.toc %}
-      {% if content contains '<h2' or content contains '<h3' %}
+      {% if content contains '<h2' or content contains '<h3' or content contains '<h4' %}
         {% assign show_panel = true %}
       {% endif %}
     {% endif %}

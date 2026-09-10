@@ -27,3 +27,11 @@
 #sidebar .sidebar-bottom a[aria-label='habr']::after {
   content: 'Habr';
 }
+
+.static-toc { top: 5rem; max-height: calc(100vh - 6rem); overflow-y: auto; }
+.static-toc ul, .static-toc-mobile ul { list-style: none; padding-left: 1rem; }
+.static-toc li, .static-toc-mobile li { margin: .4rem 0; }
+.static-toc-mobile { margin-bottom: 1.5rem; }
+.static-toc-mobile summary { cursor: pointer; }
+.content :is(h2, h3, h4) { scroll-margin-top: 5rem; }
+@media (min-width: 1200px) { .static-toc-mobile { display: none; } }
