@@ -1,7 +1,6 @@
 # Prepare notes and articles from public Git repositories for Jekyll.
 require 'cgi'
 require 'date'
-require 'digest'
 require 'fileutils'
 require 'open3'
 require 'optparse'
@@ -14,6 +13,7 @@ require 'yaml'
 ROOT = Pathname.new(__dir__).parent
 REPOSITORY_PATTERN = /\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
 SLUG_PATTERN = /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/
+POST_FILENAME_PATTERN = /\A(\d{4}-\d{2}-\d{2}) ([a-z0-9]+(?:-[a-z0-9]+)*)\.md\z/
 TAG_PATTERN = /\A#[\p{L}\p{M}\p{N}_-]+(?:\/[\p{L}\p{M}\p{N}_-]+)*\z/
 
 def read_utf8(path)
@@ -136,6 +136,7 @@ end
 
 def prepare_posts(source, output)
   count = 0
+  slugs = {}
   source.glob('*.md').sort.each do |path|
     text = read_utf8(path)
     next if text.strip.empty?
@@ -144,13 +145,23 @@ def prepare_posts(source, output)
     next if metadata['published'] == false
 
     date, title, body = extract_heading(body, path.basename.to_s)
+    filename = path.basename.to_s.match(POST_FILENAME_PATTERN)
+    unless filename
+      raise "Expected 'YYYY-MM-DD english-unique-name.md': #{path.basename}"
+    end
+    filename_date, slug = filename.captures
+    raise "Date in filename and heading differs: #{path.basename}" unless filename_date == date
+    previous = slugs[slug]
+    raise "Duplicate post name #{slug}: #{previous} and #{path.basename}" if previous
+    slugs[slug] = path.basename
+
     inline_tags, body = extract_boundary_tags(body)
     data = { 'layout' => 'post', 'tags' => [] }.merge(metadata)
     data['title'] = title
     data['date'] = date
     data['tags'] = (normalize_tags(data['tags']) + inline_tags).uniq
-    data['slug'] ||= Digest::SHA256.hexdigest(path.basename('.md').to_s)[0, 16]
-    output.join("#{date}-#{data['slug']}.md").write(render_document(data, body), encoding: 'UTF-8')
+    data['permalink'] = "/posts/#{slug}/"
+    output.join("#{date}-#{slug}.md").write(render_document(data, body), encoding: 'UTF-8')
     count += 1
   end
 
