@@ -1,7 +1,6 @@
 # Prepare notes and articles from public Git repositories for Jekyll.
 require 'cgi'
 require 'date'
-require 'digest'
 require 'fileutils'
 require 'open3'
 require 'optparse'
@@ -13,7 +12,7 @@ require 'yaml'
 
 ROOT = Pathname.new(__dir__).parent
 REPOSITORY_PATTERN = /\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
-SLUG_PATTERN = /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/
+CONTENT_FILENAME_PATTERN = /\A(\d{4}-\d{2}-\d{2}) ([A-Za-z0-9]+(?:[ -][A-Za-z0-9]+)*)\.md\z/
 TAG_PATTERN = /\A#[\p{L}\p{M}\p{N}_-]+(?:\/[\p{L}\p{M}\p{N}_-]+)*\z/
 
 def read_utf8(path)
@@ -57,20 +56,34 @@ def extract_heading(body, label)
     heading = line.match(/\A#[ \t]+(.+?)[ \t]*(?:\r?\n)?\z/)
     next unless heading
 
-    dated_title = heading[1].match(/\A(\d{4}-\d{2}-\d{2})[ \t]+(.+)\z/)
-    raise "Expected '# YYYY-MM-DD Title' in #{label}" unless dated_title
-
-    date, title = dated_title.captures
-    begin
-      Date.iso8601(date)
-    rescue Date::Error
-      raise "Invalid date #{date} in #{label}"
+    title = heading[1].strip
+    raise "Empty level-one heading in #{label}" if title.empty?
+    if title.match?(/\A\d{4}-\d{2}-\d{2}[ \t]+/)
+      raise "The level-one heading must contain only the title in #{label}; the date comes from the filename"
     end
+
     lines.delete_at(index)
-    return [date, title.strip, lines.join]
+    return [title, lines.join]
   end
 
-  raise "Missing '# YYYY-MM-DD Title' in #{label}"
+  raise "Missing '# Title' in #{label}"
+end
+
+def content_identity(path, label)
+  match = path.basename.to_s.match(CONTENT_FILENAME_PATTERN)
+  unless match
+    raise "Expected 'YYYY-MM-DD name.md' with an English name in #{label}: #{path.basename}"
+  end
+
+  date, = match.captures
+  begin
+    Date.iso8601(date)
+  rescue Date::Error
+    raise "Invalid date #{date} in #{label}"
+  end
+
+  slug = path.basename('.md').to_s.gsub(' ', '-').downcase
+  [date, slug]
 end
 
 def tag_tokens(line)
@@ -136,6 +149,7 @@ end
 
 def prepare_posts(source, output)
   count = 0
+  slugs = {}
   source.glob('*.md').sort.each do |path|
     text = read_utf8(path)
     next if text.strip.empty?
@@ -143,14 +157,19 @@ def prepare_posts(source, output)
     metadata, body = split_front_matter(text, path.basename.to_s)
     next if metadata['published'] == false
 
-    date, title, body = extract_heading(body, path.basename.to_s)
+    date, slug = content_identity(path, 'post repository')
+    title, body = extract_heading(body, path.basename.to_s)
+    previous = slugs[slug]
+    raise "Duplicate post address #{slug}: #{previous} and #{path.basename}" if previous
+    slugs[slug] = path.basename
+
     inline_tags, body = extract_boundary_tags(body)
     data = { 'layout' => 'post', 'tags' => [] }.merge(metadata)
     data['title'] = title
     data['date'] = date
     data['tags'] = (normalize_tags(data['tags']) + inline_tags).uniq
-    data['slug'] ||= Digest::SHA256.hexdigest(path.basename('.md').to_s)[0, 16]
-    output.join("#{date}-#{data['slug']}.md").write(render_document(data, body), encoding: 'UTF-8')
+    data['permalink'] = "/posts/#{slug}/"
+    output.join("#{slug}.md").write(render_document(data, body), encoding: 'UTF-8')
     count += 1
   end
 
@@ -177,19 +196,24 @@ def quote_path(path)
   path.split('/').map { |part| CGI.escape(part).gsub('+', '%20') }.join('/')
 end
 
-def import_article(source, checkout, posts_output, assets_output, article_links)
-  readmes = checkout.children.select { |path| path.file? && path.basename.to_s.downcase == 'readme.md' }
-  raise "Expected one root README.md in #{source.fetch('repo')}" unless readmes.length == 1
+def article_document(checkout, repository)
+  documents = checkout.children.select do |path|
+    path.file? && path.basename.to_s.match?(CONTENT_FILENAME_PATTERN)
+  end
+  raise "Expected one root 'YYYY-MM-DD name.md' in #{repository}" unless documents.length == 1
 
-  readme = readmes.first
-  metadata, body = split_front_matter(read_utf8(readme), source.fetch('repo'))
-  date_text, title, body = extract_heading(body, source.fetch('repo'))
+  documents.first
+end
+
+def import_article(source, checkout, document, slug, posts_output, assets_output, article_links)
+  metadata, body = split_front_matter(read_utf8(document), source.fetch('repo'))
+  date_text, = content_identity(document, source.fetch('repo'))
+  title, body = extract_heading(body, source.fetch('repo'))
   inline_tags, body = extract_boundary_tags(body)
   tags = (normalize_tags(metadata['tags']) + inline_tags).uniq
   article_date = Date.iso8601(date_text)
   date = Time.new(article_date.year, article_date.month, article_date.day, 0, 0, 0, '+03:00').iso8601
   revision = run_command('git', '-C', checkout.to_s, 'rev-parse', 'HEAD').strip
-  slug = source.fetch('slug')
   article_assets = assets_output.join(slug)
   article_assets.mkpath
   copied = {}
@@ -226,7 +250,7 @@ def import_article(source, checkout, posts_output, assets_output, article_links)
       next quote_path(relative) + suffix
     end
 
-    next './' + (uri.fragment ? "##{uri.fragment}" : '') if resolved == readme.realpath
+    next './' + (uri.fragment ? "##{uri.fragment}" : '') if resolved == document.realpath
 
     "https://github.com/#{source.fetch('repo')}/blob/#{revision}/#{quote_path(relative)}#{suffix}"
   end
@@ -269,7 +293,7 @@ def import_article(source, checkout, posts_output, assets_output, article_links)
     'toc' => true,
     'render_with_liquid' => false
   )
-  posts_output.join("#{date_text}-article-#{slug}.md").write(render_document(data, body), encoding: 'UTF-8')
+  posts_output.join("#{slug}-article.md").write(render_document(data, body), encoding: 'UTF-8')
   copied.length
 end
 
@@ -292,11 +316,6 @@ repositories.each do |source|
   repository = source.fetch('repo')
   raise "Invalid GitHub repository: #{repository}" unless repository.match?(REPOSITORY_PATTERN)
 end
-slugs = articles.map { |source| source.fetch('slug') }
-raise 'Invalid article slug' unless slugs.all? { |slug| slug.match?(SLUG_PATTERN) }
-raise 'Duplicate article slug' unless slugs.uniq.length == slugs.length
-article_links = articles.to_h { |source| [source.fetch('repo').downcase, source.fetch('slug')] }
-
 Dir.mktmpdir do |temporary_name|
   temporary = Pathname.new(temporary_name)
   generated = temporary.join('generated')
@@ -309,9 +328,19 @@ Dir.mktmpdir do |temporary_name|
   post_count = prepare_posts(posts_checkout, posts_output)
   puts "Prepared #{post_count} posts"
 
-  articles.each do |source|
-    checkout = repository_checkout(source.fetch('repo'), temporary, options[:sources_dir])
-    image_count = import_article(source, checkout, posts_output, assets_output, article_links)
+  article_inputs = articles.map do |source|
+    repository = source.fetch('repo')
+    checkout = repository_checkout(repository, temporary, options[:sources_dir])
+    document = article_document(checkout, repository)
+    _, slug = content_identity(document, repository)
+    [source, checkout, document, slug]
+  end
+  article_slugs = article_inputs.map(&:last)
+  raise 'Duplicate article address' unless article_slugs.uniq.length == article_slugs.length
+  article_links = article_inputs.to_h { |source, _, _, slug| [source.fetch('repo').downcase, slug] }
+
+  article_inputs.each do |source, checkout, document, slug|
+    image_count = import_article(source, checkout, document, slug, posts_output, assets_output, article_links)
     puts "Imported #{source.fetch('repo')}: #{image_count} images"
   end
 
