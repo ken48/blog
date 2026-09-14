@@ -12,7 +12,7 @@ require 'yaml'
 
 ROOT = Pathname.new(__dir__).parent
 REPOSITORY_PATTERN = /\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
-CONTENT_FILENAME_PATTERN = /\A(\d{4}-\d{2}-\d{2}) ([A-Za-z0-9]+(?:[ -][A-Za-z0-9]+)*)\.md\z/
+CONTENT_FILENAME_PATTERN = /\A(\d{4}-\d{2}-\d{2}) ([A-Za-z0-9](?:[A-Za-z0-9 -]*[A-Za-z0-9])?)\.md\z/
 TAG_PATTERN = /\A#[\p{L}\p{M}\p{N}_-]+(?:\/[\p{L}\p{M}\p{N}_-]+)*\z/
 
 def read_utf8(path)
@@ -94,7 +94,7 @@ def content_identity(path, label)
     raise "Invalid date #{date} in #{label}"
   end
 
-  slug = path.basename('.md').to_s.gsub(' ', '-').downcase
+  slug = path.basename('.md').to_s.gsub(/[ -]+/, '-').downcase
   [date, slug]
 end
 
