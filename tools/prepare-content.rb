@@ -80,7 +80,7 @@ def content_identity(path, label)
         details = invalid.map { |character| "#{character.inspect} (U+#{character.ord.to_s(16).upcase.rjust(4, '0')})" }.join(', ')
         raise "Invalid filename in #{label}: #{filename}. " \
               "After the date, use only Latin letters, digits, spaces, and hyphens. " \
-              "Unsupported characters: #{details}. Some Cyrillic letters look like Latin letters."
+              "Unsupported characters: #{details}."
       end
     end
 
