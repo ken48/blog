@@ -70,9 +70,21 @@ def extract_heading(body, label)
 end
 
 def content_identity(path, label)
-  match = path.basename.to_s.match(CONTENT_FILENAME_PATTERN)
+  filename = path.basename.to_s
+  match = filename.match(CONTENT_FILENAME_PATTERN)
   unless match
-    raise "Expected 'YYYY-MM-DD name.md' with an English name in #{label}: #{path.basename}"
+    parts = filename.match(/\A\d{4}-\d{2}-\d{2} (.+)\.md\z/)
+    if parts
+      invalid = parts[1].each_char.reject { |character| character.match?(/[A-Za-z0-9 -]/) }.uniq
+      unless invalid.empty?
+        details = invalid.map { |character| "#{character.inspect} (U+#{character.ord.to_s(16).upcase.rjust(4, '0')})" }.join(', ')
+        raise "Invalid filename in #{label}: #{filename}. " \
+              "After the date, use only Latin letters, digits, spaces, and hyphens. " \
+              "Unsupported characters: #{details}. Some Cyrillic letters look like Latin letters."
+      end
+    end
+
+    raise "Invalid filename in #{label}: #{filename}. Expected 'YYYY-MM-DD English name.md'."
   end
 
   date, = match.captures
