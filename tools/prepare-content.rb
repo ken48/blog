@@ -150,16 +150,50 @@ def clone_repository(repository, destination)
   run_command('git', 'clone', '--depth', '1', '--', "https://github.com/#{repository}.git", destination.to_s)
 end
 
-def repository_checkout(repository, temporary, sources_dir)
+def repository_checkout(repository, temporary)
   name = repository.split('/').last
-  return sources_dir.join(name) if sources_dir
-
   destination = temporary.join(name)
   clone_repository(repository, destination)
   destination
 end
 
-def prepare_posts(source, output)
+def relative_publication_url(from_url, to_url)
+  from = Pathname.new(from_url.sub(%r{\A/+|/+\z}, ''))
+  to = Pathname.new(to_url.sub(%r{\A/+|/+\z}, ''))
+  return './' if from == to
+
+  path = to.relative_path_from(from).to_s
+  path = "./#{path}" unless path.start_with?('../')
+  "#{path}/"
+end
+
+def rewrite_publication_links(body, document, current_url, url_map)
+  chunks = body.split(/(^[ \t]*```[^\n]*\n.*?^[ \t]*```[ \t]*$|^[ \t]*~~~[^\n]*\n.*?^[ \t]*~~~[ \t]*$|`+[^`\n]*`+)/m)
+  chunks.each_with_index do |chunk, index|
+    next if index.odd?
+
+    chunk = chunk.gsub(/(?<!!)\[([^\]\n]*)\]\(([^\s()]+)\)/) do
+      whole = Regexp.last_match(0)
+      label = Regexp.last_match(1)
+      value = Regexp.last_match(2)
+      match = value.match(/\A([^?#]+\.md)([?#].*)?\z/i)
+      next whole unless match
+
+      path, suffix = match.captures
+      next whole if path.start_with?('//') || path.match?(/\A[A-Za-z][A-Za-z0-9+.-]*:/)
+
+      target = document.dirname.join(URI::DEFAULT_PARSER.unescape(path)).cleanpath
+      target_url = url_map[target.expand_path.to_s]
+      raise "Local publication is not published from #{document}: #{value}" unless target_url
+
+      "[#{label}](#{relative_publication_url(current_url, target_url)}#{suffix})"
+    end
+    chunks[index] = chunk
+  end
+  chunks.join
+end
+
+def prepare_posts(source, output, url_map)
   count = 0
   slugs = {}
   source.glob('*.md').sort.each do |path|
@@ -181,6 +215,7 @@ def prepare_posts(source, output)
     data['date'] = date
     data['tags'] = (normalize_tags(data['tags']) + inline_tags).uniq
     data['permalink'] = "/posts/#{slug}/"
+    body = rewrite_publication_links(body, path, data['permalink'], url_map)
     output.join("#{slug}.md").write(render_document(data, body), encoding: 'UTF-8')
     count += 1
   end
@@ -188,20 +223,6 @@ def prepare_posts(source, output)
   raise 'No publishable notes found' if count.zero?
 
   count
-end
-
-def article_link(value, article_links)
-  uri = URI.parse(value)
-  return value unless %w[http https].include?(uri.scheme) && uri.host&.downcase == 'github.com'
-
-  repository = uri.path.sub(%r{\A/+|/+$}, '').sub(/\.git\z/, '')
-  slug = article_links[repository.downcase]
-  return value unless slug
-
-  fragment = uri.fragment&.downcase == 'readme' ? nil : uri.fragment
-  "../#{slug}/" + (uri.query ? "?#{uri.query}" : '') + (fragment ? "##{fragment}" : '')
-rescue URI::InvalidURIError
-  value
 end
 
 def quote_path(path)
@@ -217,10 +238,11 @@ def article_document(checkout, repository)
   documents.first
 end
 
-def import_article(source, checkout, document, slug, posts_output, assets_output, article_links)
-  metadata, body = split_front_matter(read_utf8(document), source.fetch('repo'))
-  date_text, = content_identity(document, source.fetch('repo'))
-  title, body = extract_heading(body, source.fetch('repo'))
+def import_article(repository, checkout, document, slug, posts_output, assets_output, url_map)
+  label = document.relative_path_from(checkout).to_s
+  metadata, body = split_front_matter(read_utf8(document), label)
+  date_text, = content_identity(document, label)
+  title, body = extract_heading(body, label)
   inline_tags, body = extract_boundary_tags(body)
   tags = (normalize_tags(metadata['tags']) + inline_tags).uniq
   article_date = Date.iso8601(date_text)
@@ -233,19 +255,17 @@ def import_article(source, checkout, document, slug, posts_output, assets_output
 
   resolve_url = lambda do |value, image|
     value = CGI.unescapeHTML(value)
-    converted = article_link(value, article_links) unless image
-    next converted if converted && converted != value
-
     begin
       uri = URI.parse(value)
     rescue URI::InvalidURIError
       next value
     end
     next value if uri.scheme || uri.host || uri.path.nil? || uri.path.empty?
+    next value if !image && File.extname(uri.path).downcase == '.md'
 
     relative = URI::DEFAULT_PARSER.unescape(uri.path).sub(%r{\A/+}, '')
-    local = checkout.join(relative).cleanpath
-    raise "Missing local file in #{source.fetch('repo')}: #{value}" unless local.file?
+    local = document.dirname.join(relative).cleanpath
+    raise "Missing local file in #{repository}: #{value}" unless local.file?
 
     resolved = local.realpath
     prefix = checkout_root.to_s + File::SEPARATOR
@@ -264,7 +284,7 @@ def import_article(source, checkout, document, slug, posts_output, assets_output
 
     next './' + (uri.fragment ? "##{uri.fragment}" : '') if resolved == document.realpath
 
-    "https://github.com/#{source.fetch('repo')}/blob/#{revision}/#{quote_path(relative)}#{suffix}"
+    "https://github.com/#{repository}/blob/#{revision}/#{quote_path(relative)}#{suffix}"
   end
 
   chunks = body.split(/(^[ \t]*```[^\n]*\n.*?^[ \t]*```[ \t]*$|^[ \t]*~~~[^\n]*\n.*?^[ \t]*~~~[ \t]*$|`+[^`\n]*`+)/m)
@@ -305,6 +325,7 @@ def import_article(source, checkout, document, slug, posts_output, assets_output
     'toc' => true,
     'render_with_liquid' => false
   )
+  body = rewrite_publication_links(body, document, data['permalink'], url_map)
   posts_output.join("#{slug}-article.md").write(render_document(data, body), encoding: 'UTF-8')
   copied.length
 end
@@ -316,18 +337,12 @@ end
 
 options = {}
 OptionParser.new do |parser|
-  parser.on('--sources-dir DIRECTORY') { |value| options[:sources_dir] = Pathname.new(value).expand_path }
-  parser.on('--posts-dir DIRECTORY') { |value| options[:posts_dir] = Pathname.new(value).expand_path }
+  parser.on('--repository-dir DIRECTORY') { |value| options[:repository_dir] = Pathname.new(value).expand_path }
 end.parse!
 
 config = YAML.safe_load(ROOT.join('content-sources.yml').read, aliases: false)
-posts_source = config.fetch('posts')
-articles = config.fetch('articles')
-repositories = [posts_source, *articles]
-repositories.each do |source|
-  repository = source.fetch('repo')
-  raise "Invalid GitHub repository: #{repository}" unless repository.match?(REPOSITORY_PATTERN)
-end
+repository = config.fetch('repository')
+raise "Invalid GitHub repository: #{repository}" unless repository.match?(REPOSITORY_PATTERN)
 Dir.mktmpdir do |temporary_name|
   temporary = Pathname.new(temporary_name)
   generated = temporary.join('generated')
@@ -336,27 +351,40 @@ Dir.mktmpdir do |temporary_name|
   posts_output.mkpath
   assets_output.mkpath
 
-  posts_checkout = options[:posts_dir] || repository_checkout(posts_source.fetch('repo'), temporary, options[:sources_dir])
-  post_count = prepare_posts(posts_checkout, posts_output)
-  puts "Prepared #{post_count} posts"
+  checkout = options[:repository_dir] || repository_checkout(repository, temporary)
+  posts_source = checkout.join(config.fetch('posts'))
+  articles_source = checkout.join(config.fetch('articles'))
+  raise "Posts directory not found: #{posts_source}" unless posts_source.directory?
+  raise "Articles directory not found: #{articles_source}" unless articles_source.directory?
 
-  article_inputs = articles.map do |source|
-    repository = source.fetch('repo')
-    checkout = repository_checkout(repository, temporary, options[:sources_dir])
-    document = article_document(checkout, repository)
-    _, slug = content_identity(document, repository)
-    [source, checkout, document, slug]
+  post_inputs = posts_source.glob('*.md').each_with_object([]) do |document, inputs|
+    text = read_utf8(document)
+    next if text.strip.empty?
+    metadata, = split_front_matter(text, document.basename.to_s)
+    next if metadata['published'] == false
+    _, slug = content_identity(document, 'post repository')
+    inputs << [document, slug]
+  end
+  article_inputs = articles_source.children.select(&:directory?).sort.map do |article_checkout|
+    document = article_document(article_checkout, article_checkout.relative_path_from(checkout).to_s)
+    _, slug = content_identity(document, article_checkout.relative_path_from(checkout).to_s)
+    [document, slug]
   end
   article_slugs = article_inputs.map(&:last)
   raise 'Duplicate article address' unless article_slugs.uniq.length == article_slugs.length
-  article_links = article_inputs.to_h { |source, _, _, slug| [source.fetch('repo').downcase, slug] }
+  url_map = {}
+  post_inputs.each { |document, slug| url_map[document.expand_path.to_s] = "/posts/#{slug}/" }
+  article_inputs.each { |document, slug| url_map[document.expand_path.to_s] = "/articles/#{slug}/" }
 
-  article_inputs.each do |source, checkout, document, slug|
-    image_count = import_article(source, checkout, document, slug, posts_output, assets_output, article_links)
-    puts "Imported #{source.fetch('repo')}: #{image_count} images"
+  post_count = prepare_posts(posts_source, posts_output, url_map)
+  puts "Prepared #{post_count} posts"
+
+  article_inputs.each do |document, slug|
+    image_count = import_article(repository, checkout, document, slug, posts_output, assets_output, url_map)
+    puts "Imported #{document.relative_path_from(checkout)}: #{image_count} images"
   end
 
   replace_directory(posts_output, ROOT.join('site', '_posts'))
   replace_directory(assets_output, ROOT.join('site', 'articles'))
-  puts "Prepared #{articles.length} articles"
+  puts "Prepared #{article_inputs.length} articles"
 end
