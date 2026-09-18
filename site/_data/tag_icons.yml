@@ -1,0 +1,3 @@
+# The default is deliberately neutral. Add a tag name here when a more specific
+# icon becomes useful, for example: психология: fas fa-brain
+default: fas fa-tag
