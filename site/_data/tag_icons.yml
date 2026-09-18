@@ -1,3 +1,10 @@
-# The default is deliberately neutral. Add a tag name here when a more specific
-# icon becomes useful, for example: психология: fas fa-brain
+# Add a tag here when a more specific icon becomes useful.
 default: fas fa-tag
+
+психология: fas fa-brain
+самоорганизация: fas fa-calendar-check
+экзистенциальное: fas fa-compass
+менеджмент: fas fa-briefcase
+общество: fas fa-users
+разработка: fas fa-code
+юзабилити: fas fa-hand-pointer
