@@ -2,10 +2,10 @@
 {% assign tag_url = include.tag | slugify | url_encode | prepend: '/tags/' | append: '/' | relative_url %}
 {% if include.link %}
   <a class="{{ include.class | default: '' }}" href="{{ tag_url }}" title="{{ include.tag }}" aria-label="{{ include.tag }}">
-    <i class="{{ icon }}" aria-hidden="true"></i>{% unless include.icon_only %}<span>{{ include.tag }}</span>{% endunless %}
+    <i class="{{ icon }} tag-icon-glyph" aria-hidden="true"></i>{% unless include.icon_only %}<span>{{ include.tag }}</span>{% endunless %}
   </a>
 {% else %}
   <span class="{{ include.class | default: '' }}" title="{{ include.tag }}" aria-label="{{ include.tag }}">
-    <i class="{{ icon }}" aria-hidden="true"></i>{% unless include.icon_only %}<span>{{ include.tag }}</span>{% endunless %}
+    <i class="{{ icon }} tag-icon-glyph" aria-hidden="true"></i>{% unless include.icon_only %}<span>{{ include.tag }}</span>{% endunless %}
   </span>
 {% endif %}
