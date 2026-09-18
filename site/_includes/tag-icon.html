@@ -1,6 +1,8 @@
 {% assign icon = site.data.tag_icons[include.tag] | default: site.data.tag_icons.default %}
 {% assign tag_url = include.tag | slugify | url_encode | prepend: '/tags/' | append: '/' | relative_url %}
-{% if include.link %}
+{% if include.bare %}
+  <i class="{{ icon }} tag-icon-glyph" aria-hidden="true"></i>
+{% elsif include.link %}
   <a class="{{ include.class | default: '' }}" href="{{ tag_url }}" title="{{ include.tag }}" aria-label="{{ include.tag }}">
     <i class="{{ icon }} tag-icon-glyph" aria-hidden="true"></i>{% unless include.icon_only %}<span>{{ include.tag }}</span>{% endunless %}
   </a>
